@@ -18,12 +18,15 @@ import scipy.linalg as spl
 
 # datasets with p>n parameters
 D = 50  # number of datasets
-N = 100  # number of samples
-n_dim = 400  # dimensionality of datasets
+N = 200  # number of samples
+n_dim = 300  # dimensionality of datasets
 # generate all datasets at ones (to be splitted later)
-Xall, yall = make_classification(n_samples=N*D, n_features=n_dim,
-                               n_informative=2, n_redundant=0,
-                               n_repeated=0, class_sep=5.0, shuffle=False)
+Xall = np.random.randn(N*D, n_dim)
+yall = np.concatenate(([0]*int(N*D/2), [1]*int(N*D/2)))
+#Xall, yall = make_classification(n_samples=N*D, n_features=n_dim,
+#                               n_informative=1, n_redundant=0,
+#                               n_repeated=0, class_sep=5.0,
+#                               n_clusters_per_class=1, shuffle=False)
 plt.figure()
 plt.scatter(Xall[yall==0,0], Xall[yall==0,1])
 plt.scatter(Xall[yall==1,0], Xall[yall==1,1])
