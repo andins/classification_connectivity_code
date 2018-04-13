@@ -14,41 +14,43 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from MOU import MOU
-# for each cond generate a binary adjacency matrix A
+
+
+def gen_data(N=50, density=0.2, n_classes=2, n_samples=20, T=150):
+    if np.isscalar(n_samples):  # if scalar create balanced dataset
+        n_samples = np.ones([n_classes], dtype=int) * n_samples
+    elif len(n_samples) != n_classes:
+        raise ValueError("n_samples should be scalar or its length has to be equal to n_classes!")
+    # for each cond generate a binary adjacency matrix A
+    A = np.ones([N, N, n_classes])
+    ts = np.zeros([T, N, np.sum(n_samples)])
+    y = np.zeros([np.sum(n_samples)])
+    for c in range(n_classes):
+        A[np.random.rand(N, N) > density, c] = 0
+        # for each sample generate a continuous weight matrix W
+        for s in range(n_samples[c]):
+            W = np.exp(np.random.randn(N, N))
+            C = W * A[:, :, c]
+            C *= 0.5 * N / C.sum()
+            # generate time series with MOU.simulate(C=A*W)
+            ts[:, :, s + int(np.sum(n_samples[:c]))] = MOU(n_nodes=N, C=C).simulate(T=T)
+            y[s + int(np.sum(n_samples[:c]))] = c
+    return ts, y
+
+
+# generate time series
 N = 50
 density = 0.2
-A_1 = np.ones([N, N])
-A_1[np.random.rand(N, N) > density] = 0
-A_2 = np.ones([N, N])
-A_2[np.random.rand(N, N) > density] = 0
+ts, y = gen_data(N=N, density=density, n_classes=30, n_samples=5, T=300)
 
-# for each sample generate a continuous weight matrix W
-C_1 = np.zeros([N, N, 20])
-C_2 = np.zeros([N, N, 20])
-ts_1 = np.zeros([300, N, 20])
-ts_2 = np.zeros([300, N, 20])
-X = np.zeros([40, int(N * (N-1) / 2)])
-for s in range(20):
-    C_1[:, :, s] = np.exp(np.random.randn(N, N)) * A_1
-    C_1[:, :, s] *= 0.5 * N / C_1[:, :, s].sum()
-    C_2[:, :, s] = np.exp(np.random.randn(N, N)) * A_2
-    C_2[:, :, s] *= 0.5 * N / C_2[:, :, s].sum()
-    # generate time series with MOU.simulate(C=A*W)
-    ts_1[:, :, s] = MOU(n_nodes=N, C=C_1[:, :, s]).simulate(T=300)
-    ts_2[:, :, s] = MOU(n_nodes=N, C=C_2[:, :, s]).simulate(T=300)
+# calculate FC and EC and build data matrix X
+X = np.zeros([ts.shape[2], int(N * (N-1) / 2)])
+for s in range(ts.shape[2]):
     # estimate FC from time series
-    FC = np.corrcoef(ts_1[:, :, s].T)
+    FC = np.corrcoef(ts[:, :, s].T)
     fcflat = np.tril(FC, k=-1).flatten()
     X[s, :] = fcflat[np.flatnonzero(fcflat)]
-    FC = np.corrcoef(ts_2[:, :, s].T)
-    fcflat = np.tril(FC, k=-1).flatten()
-    X[s + 20, :] = fcflat[np.flatnonzero(fcflat)]
     # estimate EC from time series
-
-# targets
-y = np.ones(40)
-y[:20] = 0
-np.random.shuffle(y)
 
 # predict cond from FC and EC
 
@@ -72,7 +74,7 @@ for train_idx, test_idx in shS.split(X):  # repetitions loop
     y_test = y[test_idx]
     pipe_z_pca_mlr.fit(data_train, y_train)
     score_z_pca_mlr[i] = pipe_z_pca_mlr.score(data_test, y_test)
-    i+=1
+    i += 1
         
 # plot comparison as violin plots
 fig, ax = plt.subplots()
