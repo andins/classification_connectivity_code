@@ -16,7 +16,18 @@ from sklearn.pipeline import Pipeline
 from MOU import MOU
 
 
-def gen_data(N=50, density=0.2, n_classes=2, n_samples=20, T=150):
+def make_timeseries_classification(N=50, density=0.2, n_classes=2, n_samples=20, T=150):
+    """
+    PARAMETERS:
+        N : number of nodes in the network
+        density : average density of the connectivity matrix
+        n_classes : number of classes (one adjacency matrix generated for each)
+        n_samples : list-like of shape [n_classes] or int, number of samples for each class (if scalar create balanced classes)
+        T : number of time points
+    RETURNS:
+        ts : shape [T, N, np.sum(n_samples)], time series
+        y : shape[np.sum(n_samples)], class labels
+    """
     if np.isscalar(n_samples):  # if scalar create balanced dataset
         n_samples = np.ones([n_classes], dtype=int) * n_samples
     elif len(n_samples) != n_classes:
@@ -41,15 +52,14 @@ def gen_data(N=50, density=0.2, n_classes=2, n_samples=20, T=150):
 # generate time series
 N = 50
 density = 0.2
-ts, y = gen_data(N=N, density=density, n_classes=30, n_samples=5, T=300)
+ts, y = make_timeseries_classification(N=N, density=density, n_classes=30, n_samples=5, T=300)
 
 # calculate FC and EC and build data matrix X
 X = np.zeros([ts.shape[2], int(N * (N-1) / 2)])
 for s in range(ts.shape[2]):
     # estimate FC from time series
     FC = np.corrcoef(ts[:, :, s].T)
-    fcflat = np.tril(FC, k=-1).flatten()
-    X[s, :] = fcflat[np.flatnonzero(fcflat)]
+    X[s, :] = FC[np.tril_indices_from(FC, k=-1)]
     # estimate EC from time series
 
 # predict cond from FC and EC
